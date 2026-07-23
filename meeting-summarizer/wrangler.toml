@@ -1,0 +1,8 @@
+name = "meetmind-ai-privacy"
+pages_build_output_dir = "./dist"
+
+[vars]
+ENVIRONMENT = "production"
+
+# Cloudflare Pages deployment configuration
+# To deploy manually: npx wrangler pages deploy ./dist

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeetMind AI - Xem trước Trực tiếp (Live Preview)</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --bg-card: rgba(18, 24, 38, 0.85);
+      --bg-card-hover: rgba(28, 36, 56, 0.9);
+      --border-light: rgba(255, 255, 255, 0.1);
+      --accent-primary: #6366f1;
+      --accent-secondary: #8b5cf6;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.12) 0%, transparent 40%);
+      padding: 1.5rem;
+    }
+    .glass-panel {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-light);
+      border-radius: 16px;
+      padding: 1.5rem;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      color: #fff; border: none; padding: 0.65rem 1.4rem; border-radius: 8px; font-weight: 600; cursor: pointer;
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08); color: #fff; border: 1px solid var(--border-light); padding: 0.65rem 1.2rem; border-radius: 8px; font-weight: 500; cursor: pointer;
+    }
+    .timestamp-pill {
+      background: rgba(99, 102, 241, 0.2); color: #a5b4fc; font-family: monospace; font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 6px; cursor: pointer; border: 1px solid rgba(99, 102, 241, 0.4);
+    }
+    .timestamp-pill:hover { background: #6366f1; color: #fff; }
+    .badge { padding: 0.25rem 0.65rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    .badge-emerald { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .badge-indigo { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const DEMO_TRANSCRIPT = [
+      { id: 1, time: '00:00', start: 0, speaker: 'Anh Minh (CEO)', text: 'Chào mọi người, cảm ơn tất cả đã tham gia đông đủ. Hôm nay chúng ta chốt kế hoạch ra mắt tính năng AI mới cho ứng dụng vào đầu tháng 8.' },
+      { id: 2, time: '00:19', start: 19, speaker: 'Chị Lan (Product Lead)', text: 'Bộ phận Product đã hoàn tất 95% thử nghiệm. Khách hàng đặc biệt quan tâm tới an toàn thông tin dữ liệu.' },
+      { id: 3, time: '00:46', start: 46, speaker: 'Anh Hoàng (Tech Lead)', text: 'Về bảo mật dữ liệu, bên em chạy 100% Client-side bằng WebAssembly hoặc BYOK API Key. Dữ liệu audio/video không hề lưu trên server trung gian nên bảo mật 100%.' },
+      { id: 4, time: '01:21', start: 81, speaker: 'Chị Mai (Marketing)', text: 'Rất tuyệt! Điểm "Bảo mật dữ liệu tuyệt đối" sẽ là USP chính. Mã nguồn sẽ được đẩy lên GitHub và triển khai qua Cloudflare Pages.' }
+    ];
+
+    function LivePreviewApp() {
+      const [tab, setTab] = React.useState('summary');
+      const [chatInput, setChatInput] = React.useState('');
+      const [messages, setMessages] = React.useState([
+        { sender: 'bot', text: 'Xin chào! Tôi là Trợ lý AI NotebookLM của cuộc họp. Bạn có thể hỏi bất kỳ câu hỏi nào về cuộc họp này.' }
+      ]);
+      const [currentTime, setCurrentTime] = React.useState('00:00');
+
+      const handleAsk = (qText) => {
+        const query = qText || chatInput;
+        if (!query.trim()) return;
+        
+        setMessages(prev => [
+          ...prev, 
+          { sender: 'user', text: query },
+          { sender: 'bot', text: `Dựa trên nội dung cuộc họp tại mốc [00:46], Anh Hoàng (Tech Lead) đã xác nhận: "Về bảo mật dữ liệu, bên em chạy 100% Client-side. Dữ liệu không lưu trên server trung gian." Mã nguồn sẵn sàng đẩy lên GitHub và Cloudflare Pages.`, time: '00:46' }
+        ]);
+        setChatInput('');
+      };
+
+      return (
+        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+          
+          {/* Header */}
+          <div className="glass-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <div>
+              <h1 style={{ fontSize: '1.4rem', color: '#a5b4fc' }}>🎙️ MeetMind AI Privacy Meeting Summarizer</h1>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Tóm tắt Cuộc họp Audio/Video & Bảo mật 100% Client-side</p>
+            </div>
+            <span className="badge badge-emerald">🔒 100% Local / Privacy Protected</span>
+          </div>
+
+          {/* Navigation Tabs */}
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+            <button className={tab === 'summary' ? 'btn-primary' : 'btn-secondary'} onClick={() => setTab('summary')}>📌 Biên bản Tóm tắt</button>
+            <button className={tab === 'transcript' ? 'btn-primary' : 'btn-secondary'} onClick={() => setTab('transcript')}>📝 Transcript Thoại</button>
+            <button className={tab === 'chat' ? 'btn-primary' : 'btn-secondary'} onClick={() => setTab('chat')}>✨ Trợ lý NotebookLM Chat</button>
+          </div>
+
+          {/* Tab 1: Summary */}
+          {tab === 'summary' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="glass-panel">
+                <h3 style={{ color: '#38bdf8', marginBottom: '0.5rem' }}>📌 Tóm tắt Tổng quan Executive Brief</h3>
+                <p>Cuộc họp đã thống nhất 100% kế hoạch ra mắt tính năng AI mới. Điểm nhấn cốt lõi là chiến lược <strong>Bảo mật dữ liệu tuyệt đối 100% Client-side / BYOK</strong>. Mã nguồn được đóng gói đẩy lên GitHub và gắn vào Cloudflare Pages trước ngày 28/07/2026.</p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="glass-panel">
+                  <h4 style={{ color: '#c084fc', marginBottom: '0.5rem' }}>🎯 Chủ đề Thảo luận (Agenda)</h4>
+                  <ul>
+                    <li>1. Đánh giá tính năng tóm tắt tự động AI</li>
+                    <li>2. Kiến trúc Bảo mật An toàn thông tin</li>
+                    <li>3. Kế hoạch Đẩy mã nguồn GitHub & Cloudflare</li>
+                  </ul>
+                </div>
+
+                <div className="glass-panel">
+                  <h4 style={{ color: '#34d399', marginBottom: '0.5rem' }}>💡 Quyết định Quan trọng</h4>
+                  <ul>
+                    <li>✅ Chọn 100% Client-side (WASM/BYOK) làm USP.</li>
+                    <li>✅ Đẩy code lên GitHub & Cloudflare trước 28/07.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 2: Transcript */}
+          {tab === 'transcript' && (
+            <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <h3>📝 Chi tiết Nguồn Thoại (Transcript)</h3>
+              {DEMO_TRANSCRIPT.map(t => (
+                <div key={t.id} style={{ background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '8px' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                    <span className="timestamp-pill" onClick={() => setCurrentTime(t.time)}>⏱️ {t.time}</span>
+                    <strong style={{ color: '#c084fc' }}>{t.speaker}:</strong>
+                  </div>
+                  <p style={{ fontSize: '0.92rem' }}>{t.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Tab 3: Grounded NotebookLM Chat */}
+          {tab === 'chat' && (
+            <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: '400px' }}>
+              <h3>✨ Trợ lý NotebookLM Grounded Chat</h3>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {messages.map((m, i) => (
+                  <div key={i} style={{ alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start', background: m.sender === 'user' ? '#6366f1' : 'rgba(255,255,255,0.05)', padding: '0.75rem 1rem', borderRadius: '12px', maxWidth: '85%' }}>
+                    <p>{m.text}</p>
+                    {m.time && <span className="timestamp-pill" style={{ marginTop: '0.4rem', display: 'inline-block' }}>📍 Trích dẫn tại: {m.time}</span>}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input 
+                  type="text" 
+                  placeholder="Hỏi về bảo mật hoặc GitHub / Cloudflare..." 
+                  value={chatInput} 
+                  onChange={e => setChatInput(e.target.value)}
+                  style={{ flex: 1, padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--border-light)', background: '#0b0f19', color: '#fff' }}
+                />
+                <button className="btn-primary" onClick={() => handleAsk()}>Hỏi</button>
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<LivePreviewApp />);
+  </script>
+</body>
+</html>
